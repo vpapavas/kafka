@@ -17,6 +17,9 @@
 package org.apache.kafka.streams.state.internals;
 
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,6 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 
 public class Position {
+    public static final String VECTOR_KEY = "c";
+
     private final ConcurrentMap<String, ConcurrentMap<Integer, AtomicLong>> position;
 
     public static Position emptyPosition() {
@@ -55,6 +60,94 @@ public class Position {
 
     public void merge(final Position other) {
         merge(other.position, (a, b) -> update(a, b.getKey(), b.getValue().longValue()));
+    }
+
+    public ByteBuffer serialize() {
+
+        final byte version = (byte) 0;
+
+        int arraySize = Byte.SIZE; // version
+
+        final int nTopics = position.size();
+        arraySize += Integer.SIZE;
+
+        final ArrayList<Entry<String, ConcurrentMap<Integer, AtomicLong>>> entries =
+                new ArrayList<>(position.entrySet());
+        final byte[][] topics = new byte[entries.size()][];
+
+        for (int i = 0; i < nTopics; i++) {
+            final Entry<String, ConcurrentMap<Integer, AtomicLong>> entry = entries.get(i);
+            final byte[] topicBytes = entry.getKey().getBytes(StandardCharsets.UTF_8);
+            topics[i] = topicBytes;
+            arraySize += Integer.SIZE; // topic name length
+            arraySize += topicBytes.length; // topic name itself
+
+            final Map<Integer, AtomicLong> partitionOffsets = entry.getValue();
+            arraySize += Integer.SIZE; // Number of PartitionOffset pairs
+            arraySize += (Integer.SIZE + Long.SIZE)
+                    * partitionOffsets.size(); // partitionOffsets themselves
+        }
+
+        final ByteBuffer buffer = ByteBuffer.allocate(arraySize);
+        buffer.put(version);
+
+        buffer.putInt(nTopics);
+        for (int i = 0; i < nTopics; i++) {
+            buffer.putInt(topics[i].length);
+            buffer.put(topics[i]);
+
+            final Entry<String, ConcurrentMap<Integer, AtomicLong>> entry = entries.get(i);
+            final ConcurrentMap<Integer, AtomicLong> partitionOffsets = entry.getValue();
+            buffer.putInt(partitionOffsets.size());
+            for (final Entry<Integer, AtomicLong> partitionOffset : partitionOffsets.entrySet()) {
+                buffer.putInt(partitionOffset.getKey());
+                buffer.putLong(partitionOffset.getValue().longValue());
+            }
+        }
+
+        buffer.flip();
+        return buffer;
+
+    }
+
+    public static Position deserialize(final ByteBuffer buffer) {
+        final byte version = buffer.get();
+
+        switch (version) {
+            case (byte) 0: // actual position, v0
+                final int nTopics = buffer.getInt();
+                final Map<String, Map<Integer, Long>> position = new HashMap<>(nTopics);
+                for (int i = 0; i < nTopics; i++) {
+                    final int topicNameLength = buffer.getInt();
+                    final byte[] topicNameBytes = new byte[topicNameLength];
+                    buffer.get(topicNameBytes);
+                    final String topic = new String(topicNameBytes, StandardCharsets.UTF_8);
+
+                    final int numPairs = buffer.getInt();
+                    final Map<Integer, Long> partitionOffsets = new HashMap<>(numPairs);
+                    for (int j = 0; j < numPairs; j++) {
+                        partitionOffsets.put(buffer.getInt(), buffer.getLong());
+                    }
+                    position.put(topic, partitionOffsets);
+                }
+                return new Position(position);
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown version " + version + " when deserializing Position"
+                );
+        }
+    }
+
+    public boolean isUnbounded() {
+        return position != null && position.isEmpty();
+    }
+
+    public Map<Integer, Long> getBound(final String topic) {
+        final Map<Integer, Long> bounds = new HashMap<>();
+        for (final Integer partition: position.get(topic).keySet()) {
+            bounds.put(partition, position.get(topic).get(partition).longValue());
+        }
+        return bounds;
     }
 
     @Override

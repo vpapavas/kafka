@@ -47,6 +47,7 @@ public class MockRecordCollector implements RecordCollector {
                             final Long timestamp,
                             final Serializer<K> keySerializer,
                             final Serializer<V> valueSerializer) {
+        System.out.println("-------> Add to collector");
         collected.add(new ProducerRecord<>(topic,
             partition,
             timestamp,

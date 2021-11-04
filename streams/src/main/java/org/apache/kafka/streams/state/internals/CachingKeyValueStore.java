@@ -24,6 +24,8 @@ import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.api.Record;
+import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
@@ -34,10 +36,12 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
 import static org.apache.kafka.streams.processor.internals.ProcessorContextUtils.asInternalProcessorContext;
 import static org.apache.kafka.streams.state.internals.ExceptionUtils.executeAll;
 import static org.apache.kafka.streams.state.internals.ExceptionUtils.throwSuppressed;
@@ -54,7 +58,8 @@ public class CachingKeyValueStore
     private InternalProcessorContext<?, ?> context;
     private Thread streamThread;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private Position position;
+    private Optional<Position> position;
+    private boolean consistencyEnabled = false;
 
     CachingKeyValueStore(final KeyValueStore<Bytes, byte[]> underlying) {
         super(underlying);
@@ -79,6 +84,13 @@ public class CachingKeyValueStore
         // save the stream thread as we only ever want to trigger a flush
         // when the stream thread is the current thread.
         streamThread = Thread.currentThread();
+        consistencyEnabled = StreamsConfig.InternalConfig.getBoolean(
+                context.appConfigs(),
+                IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
+                false);
+        if (consistencyEnabled) {
+            position = Optional.of(Position.emptyPosition());
+        }
     }
 
     Position getPosition() {
@@ -164,8 +176,10 @@ public class CachingKeyValueStore
                 context.timestamp(),
                 context.partition(),
                 context.topic()));
-
-        position = position.update(context.topic(), context.partition(), context.offset());
+        if (context.recordMetadata().isPresent() && consistencyEnabled) {
+            final RecordMetadata meta = context.recordMetadata().get();
+            position.get().update(meta.topic(), meta.partition(), meta.offset());
+        }
     }
 
     @Override

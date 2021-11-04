@@ -34,6 +34,7 @@ import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsConfig;
+import org.apache.kafka.streams.StreamsConfig.InternalConfig;
 import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.processor.StateStoreContext;
@@ -111,7 +112,6 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
 
     InternalMockProcessorContext context;
     RocksDBStore rocksDBStore;
-    Position position;
 
     @Before
     public void setUp() {
@@ -125,7 +125,6 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
             new StreamsConfig(props)
         );
         rocksDBStore = getRocksDBStore();
-        position = rocksDBStore.getPosition();
     }
 
     @After
@@ -399,6 +398,16 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
             new Bytes(stringSerializer.serialize(null, "3")),
             stringSerializer.serialize(null, "c")));
 
+        final Properties props = StreamsTestUtils.getStreamsConfig();
+        props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, MockRocksDbConfigSetter.class);
+        props.put(InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED, true);
+        dir = TestUtils.tempDirectory();
+        context = new InternalMockProcessorContext<>(
+                dir,
+                Serdes.String(),
+                Serdes.String(),
+                new StreamsConfig(props)
+        );
         final MonotonicProcessorRecordContext recordContext = new MonotonicProcessorRecordContext("input", 0);
         context.setRecordContext(recordContext);
         rocksDBStore.init((StateStoreContext) context, rocksDBStore);
@@ -411,7 +420,7 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
             offset++;
         }
 
-        final Position actual = rocksDBStore.getPosition();
+        final Position actual = rocksDBStore.getPosition().get();
         assertEquals(expected, actual);
     }
 

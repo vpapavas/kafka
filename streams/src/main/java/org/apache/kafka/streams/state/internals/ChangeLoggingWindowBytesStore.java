@@ -17,16 +17,21 @@
 package org.apache.kafka.streams.state.internals;
 
 import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
+import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.WindowStore;
 import org.apache.kafka.streams.state.WindowStoreIterator;
 
+import java.util.Optional;
+
 import static java.util.Objects.requireNonNull;
+import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
 import static org.apache.kafka.streams.processor.internals.ProcessorContextUtils.asInternalProcessorContext;
 
 /**
@@ -43,8 +48,10 @@ class ChangeLoggingWindowBytesStore
 
     private final boolean retainDuplicates;
     InternalProcessorContext context;
+    Optional<Position> position;
     private int seqnum = 0;
     private final ChangeLoggingKeySerializer keySerializer;
+    private boolean consistencyEnabled = false;
 
     ChangeLoggingWindowBytesStore(final WindowStore<Bytes, byte[]> bytesStore,
                                   final boolean retainDuplicates,
@@ -52,6 +59,7 @@ class ChangeLoggingWindowBytesStore
         super(bytesStore);
         this.retainDuplicates = retainDuplicates;
         this.keySerializer = requireNonNull(keySerializer, "keySerializer");
+        this.position = Optional.empty();
     }
 
     @Deprecated
@@ -67,6 +75,13 @@ class ChangeLoggingWindowBytesStore
                      final StateStore root) {
         this.context = asInternalProcessorContext(context);
         super.init(context, root);
+        consistencyEnabled = StreamsConfig.InternalConfig.getBoolean(
+                context.appConfigs(),
+                IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
+                false);
+        if (consistencyEnabled) {
+            position = Optional.of(Position.emptyPosition());
+        }
     }
 
     @Override
@@ -133,12 +148,17 @@ class ChangeLoggingWindowBytesStore
                     final byte[] value,
                     final long windowStartTimestamp) {
         wrapped().put(key, value, windowStartTimestamp);
+        if (consistencyEnabled && context != null && context.recordMetadata().isPresent()) {
+            final RecordMetadata meta = context.recordMetadata().get();
+            position.get().update(meta.topic(), meta.partition(), meta.offset());
+        }
         log(keySerializer.serialize(key, windowStartTimestamp, maybeUpdateSeqnumForDups()), value);
     }
 
+    @SuppressWarnings("unchecked")
     void log(final Bytes key,
              final byte[] value) {
-        context.logChange(name(), key, value, context.timestamp());
+        context.logChange(name(), key, value, context.timestamp(), position);
     }
 
     private int maybeUpdateSeqnumForDups() {

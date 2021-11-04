@@ -17,14 +17,19 @@
 package org.apache.kafka.streams.state.internals;
 
 import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
+import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.SessionStore;
 
+import java.util.Optional;
+
+import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
 import static org.apache.kafka.streams.processor.internals.ProcessorContextUtils.asInternalProcessorContext;
 
 /**
@@ -36,9 +41,12 @@ class ChangeLoggingSessionBytesStore
     implements SessionStore<Bytes, byte[]> {
 
     private InternalProcessorContext context;
+    private Optional<Position> position;
+    private boolean consistencyEnabled = false;
 
     ChangeLoggingSessionBytesStore(final SessionStore<Bytes, byte[]> bytesStore) {
         super(bytesStore);
+        this.position = Optional.empty();
     }
 
     @Deprecated
@@ -52,6 +60,13 @@ class ChangeLoggingSessionBytesStore
     public void init(final StateStoreContext context, final StateStore root) {
         this.context = asInternalProcessorContext(context);
         super.init(context, root);
+        consistencyEnabled = StreamsConfig.InternalConfig.getBoolean(
+                context.appConfigs(),
+                IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
+                false);
+        if (consistencyEnabled) {
+            position = Optional.of(Position.emptyPosition());
+        }
     }
 
     @Override
@@ -79,15 +94,21 @@ class ChangeLoggingSessionBytesStore
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void remove(final Windowed<Bytes> sessionKey) {
         wrapped().remove(sessionKey);
-        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), null, context.timestamp());
+        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), null, context.timestamp(), position);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void put(final Windowed<Bytes> sessionKey, final byte[] aggregate) {
+        if (consistencyEnabled && context.recordMetadata().isPresent()) {
+            final RecordMetadata meta = context.recordMetadata().get();
+            position.get().update(meta.topic(), meta.partition(), meta.offset());
+        }
         wrapped().put(sessionKey, aggregate);
-        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), aggregate, context.timestamp());
+        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), aggregate, context.timestamp(), position);
     }
 
     @Override
