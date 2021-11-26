@@ -221,15 +221,7 @@ public class MeteredKeyValueStore<K, V>
             final RawKeyQuery rawKeyQuery = RawKeyQuery.withKey(keyBytes(typedQuery.getKey()));
             final QueryResult<byte[]> rawResult =
                 wrapped().query(rawKeyQuery, positionBound, collectExecutionInfo);
-            if (rawResult.isSuccess()) {
-                final V value = outerValue(rawResult.getResult());
-                final QueryResult<V> typedQueryResult =
-                    rawResult.swapResult(value);
-                result = (QueryResult<R>) typedQueryResult;
-            } else {
-                // the generic type doesn't matter, since failed queries have no result set.
-                result = (QueryResult<R>) rawResult;
-            }
+            result = getResult(rawResult);
         } else {
             result = wrapped().query(query, positionBound, collectExecutionInfo);
         }
@@ -238,6 +230,39 @@ public class MeteredKeyValueStore<K, V>
             "Handled in " + getClass() + " with serdes " + serdes + " in " + (end - start) + "ns");
         return result;
     }
+
+
+//    @SuppressWarnings("unchecked")
+//    @Override
+//    public <R> QueryResult<R> query(final Query<R> query,
+//        final PositionBound positionBound,
+//        final boolean collectExecutionInfo) {
+//
+//        final long start = System.nanoTime();
+//        final QueryResult<R> result;
+//
+//        if (query instanceof KeyQuery) {
+//            final KeyQuery<K, V> typedQuery = (KeyQuery<K, V>) query;
+//            final RawKeyQuery rawKeyQuery = RawKeyQuery.withKey(keyBytes(typedQuery.getKey()));
+//            final QueryResult<byte[]> rawResult =
+//                wrapped().query(rawKeyQuery, positionBound, collectExecutionInfo);
+//            result = getResult(rawResult);
+//        } else if (query instanceof RangeQuery) {
+//            final RangeQuery<K, V> typedQuery = (RangeQuery<K, V>) query;
+//            final Optional<Bytes> lowerRange = typedQuery.getLowerBound().map(this::keyBytes);
+//            final Optional<Bytes> upperRange = typedQuery.getUpperBound().map(this::keyBytes);
+//            final RawRangeQuery rawRangeQuery = RawRangeQuery.withRange(lowerRange, upperRange);
+//            final QueryResult<KeyValueIterator<Bytes, byte[]>> rawResult =
+//                    wrapped().query(rawRangeQuery, positionBound, collectExecutionInfo);
+//            result = getResult(rawResult);
+//        } else {
+//            result = wrapped().query(query, positionBound, collectExecutionInfo);
+//        }
+//        final long end = System.nanoTime();
+//        result.addExecutionInfo(
+//            "Handled in " + getClass() + " with serdes " + serdes + " in " + (end - start) + "ns");
+//        return result;
+//    }
 
     @Override
     public V get(final K key) {
@@ -374,6 +399,19 @@ public class MeteredKeyValueStore<K, V>
             final long currentTime = time.milliseconds();
             final long e2eLatency =  currentTime - context.timestamp();
             e2eLatencySensor.record(e2eLatency, currentTime);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <R> QueryResult<R> getResult(final QueryResult<byte[]> rawResult) {
+        if (rawResult.isSuccess()) {
+            final V value = outerValue(rawResult.getResult());
+            final QueryResult<V> typedQueryResult =
+                    rawResult.swapResult(value);
+            return (QueryResult<R>) typedQueryResult;
+        } else {
+            // the generic type doesn't matter, since failed queries have no result set.
+            return (QueryResult<R>) rawResult;
         }
     }
 

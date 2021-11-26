@@ -26,7 +26,6 @@ import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.KeyValueTimestamp;
-import org.apache.kafka.streams.StoreQueryParameters;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.integration.utils.EmbeddedKafkaCluster;
@@ -44,11 +43,10 @@ import org.apache.kafka.streams.query.KeyQuery;
 import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.query.RawKeyQuery;
+import org.apache.kafka.streams.query.RawRangeQuery;
 import org.apache.kafka.streams.query.RawScanQuery;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.apache.kafka.streams.state.QueryableStoreTypes;
-import org.apache.kafka.streams.state.ReadOnlyKeyValueStore;
 import org.apache.kafka.streams.state.StateSerdes;
 import org.apache.kafka.streams.state.ValueAndTimestamp;
 import org.apache.kafka.streams.state.WindowStore;
@@ -287,6 +285,72 @@ public class IQv2IntegrationTest {
             is(Position.fromMap(
                 mkMap(mkEntry("input-topic", mkMap(mkEntry(0, 0L), mkEntry(1, 1L)))))));
     }
+
+    @Test
+    public void shouldScanUncachedTablePartitionsRangeQuery() {
+
+        final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
+                kafkaStreams.serdesForStore(UNCACHED_TABLE);
+
+        final InteractiveQueryResult<KeyValueIterator<Bytes, byte[]>> scanResult =
+                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(
+                        RawRangeQuery.withRange(Optional.empty(), Optional.empty())));
+
+        System.out.println("|||" + scanResult);
+        final Map<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> partitionResults =
+                scanResult.getPartitionResults();
+        for (final Entry<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> entry : partitionResults.entrySet()) {
+            try (final KeyValueIterator<Bytes, byte[]> keyValueIterator =
+                         entry.getValue().getResult()) {
+                while (keyValueIterator.hasNext()) {
+                    final KeyValue<Bytes, byte[]> next = keyValueIterator.next();
+                    System.out.println(
+                            "|||" + entry.getKey() +
+                                    " " + serdes.keyFrom(next.key.get()) +
+                                    " " + serdes.valueFrom(next.value)
+                    );
+                }
+            }
+        }
+
+        assertThat(scanResult.getPosition(),
+                is(Position.fromMap(
+                        mkMap(mkEntry("input-topic", mkMap(mkEntry(0, 0L), mkEntry(1, 1L)))))));
+    }
+
+    @Test
+    public void shouldRangeUncachedTablePartitions() {
+
+        final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
+                kafkaStreams.serdesForStore(UNCACHED_TABLE);
+        final byte[] rawKey = serdes.rawKey(1);
+        final InteractiveQueryResult<KeyValueIterator<Bytes, byte[]>> rangeResult =
+                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(
+                        RawRangeQuery.withRange(Optional.of(Bytes.wrap(serdes.rawKey(1))),
+                                Optional.of(Bytes.wrap(serdes.rawKey(2))))));
+
+        System.out.println("|||" + rangeResult);
+        final Map<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> partitionResults =
+                rangeResult.getPartitionResults();
+        for (final Entry<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> entry : partitionResults.entrySet()) {
+            try (final KeyValueIterator<Bytes, byte[]> keyValueIterator =
+                         entry.getValue().getResult()) {
+                while (keyValueIterator.hasNext()) {
+                    final KeyValue<Bytes, byte[]> next = keyValueIterator.next();
+                    System.out.println(
+                            "|||" + entry.getKey() +
+                                    " " + serdes.keyFrom(next.key.get()) +
+                                    " " + serdes.valueFrom(next.value)
+                    );
+                }
+            }
+        }
+
+        assertThat(rangeResult.getPosition(),
+                is(Position.fromMap(
+                        mkMap(mkEntry("input-topic", mkMap(mkEntry(0, 0L), mkEntry(1, 1L)))))));
+    }
+
 
     @Test
     public void shouldScanUncachedTableCollated() {

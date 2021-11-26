@@ -22,10 +22,12 @@ import org.apache.kafka.streams.query.PositionBound;
 import org.apache.kafka.streams.query.Query;
 import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.query.RawKeyQuery;
+import org.apache.kafka.streams.query.RawRangeQuery;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.Map;
+import java.util.Optional;
 
 public final class StoreQueryUtils {
 
@@ -65,6 +67,32 @@ public final class StoreQueryUtils {
                 }
                 return queryResult;
             }
+            case "org.apache.kafka.streams.query.RawRangeQuery": {
+                final RawRangeQuery rangeQuery = (RawRangeQuery) query;
+                final Optional<Bytes> lowerRange = rangeQuery.getLowerBound();
+                final Optional<Bytes> upperRange = rangeQuery.getUpperBound();
+                final StringBuilder executionInfo = new StringBuilder();
+                KeyValueIterator<Bytes, byte[]> iterator = null;
+                if (!lowerRange.isPresent() && !upperRange.isPresent()) {
+                    iterator = kvStore.all();
+                    if (enableExecutionInfo) {
+                        executionInfo.append("Handled on ").append(kvStore.getClass().getName()).append(
+                                "#all via StoreQueryAdapters").append(" in ");
+                    }
+                } else {
+                    iterator = kvStore.range(lowerRange.orElse(null), upperRange.orElse(null));
+                    if (enableExecutionInfo) {
+                        executionInfo.append("Handled on ").append(kvStore.getClass().getName()).append(
+                                "#range via StoreQueryAdapters").append(" in ");
+                    }
+                }
+                @SuppressWarnings("unchecked") final R result = (R) iterator;
+                final long end = System.nanoTime();
+                final QueryResult<R> queryResult = QueryResult.forResult(result);
+                executionInfo.append(end - start).append("ns");
+                queryResult.addExecutionInfo(executionInfo.toString());
+                return queryResult;
+            }
             default:
                 return QueryResult.forUnknownQueryType(query, kvStore);
         }
@@ -88,6 +116,32 @@ public final class StoreQueryUtils {
         }
         return queryResult;
     }
+
+    public static <R> QueryResult<R> handleRawRangeQuery(
+            final KeyValueStore<Bytes, byte[]> kvStore,
+            final boolean enableExecutionInfo,
+            final long start,
+            final RawRangeQuery rangeQuery) {
+
+        final Optional<Bytes> lowerRange = rangeQuery.getLowerBound();
+        final Optional<Bytes> upperRange = rangeQuery.getUpperBound();
+        KeyValueIterator<Bytes, byte[]> value = null;
+        if (!lowerRange.isPresent() && !upperRange.isPresent()) {
+            value = kvStore.all();
+        } else {
+            value = kvStore.range(lowerRange.orElse(null), upperRange.orElse(null));
+        }
+        @SuppressWarnings("unchecked") final R result = (R) value;
+        final long end = System.nanoTime();
+
+        final QueryResult<R> queryResult = QueryResult.forResult(result);
+        if (enableExecutionInfo) {
+            queryResult.addExecutionInfo("Handled on " + kvStore.getClass().getName()
+                    + "#get via StoreQueryAdapters" + " in " + (end - start) + "ns");
+        }
+        return queryResult;
+    }
+
 
     public static boolean isPermitted(
         final Map<String, Map<Integer, Long>> seenOffsets,
