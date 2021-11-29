@@ -29,8 +29,20 @@ public class RangeQuery<K, V> implements Query<V> {
         this.upper = upper;
     }
 
-    public static <K, V> RangeQuery<K, V> withRange(final Optional<K> lower, final Optional<K> upper) {
-        return new RangeQuery<>(lower, upper);
+    public static <K, V> RangeQuery<K, V> withRange(final K lower, final K upper) {
+        return new RangeQuery<>(Optional.of(lower), Optional.of(upper));
+    }
+
+    public static <K, V> RangeQuery<K, V> withUpperBound(final K upper) {
+        return new RangeQuery<>(Optional.empty(), Optional.of(upper));
+    }
+
+    public static <K, V> RangeQuery<K, V> withLowerBound(final K lower) {
+        return new RangeQuery<>(Optional.of(lower), Optional.empty());
+    }
+
+    public static <K, V> RangeQuery<K, V> withNoBounds() {
+        return new RangeQuery<>(Optional.empty(), Optional.empty());
     }
 
     public Optional<K> getLowerBound() {

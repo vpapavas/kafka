@@ -329,7 +329,7 @@ public class IQv2IntegrationTest {
 
         final InteractiveQueryResult<KeyValueIterator<Bytes, byte[]>> scanResult =
                 kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(
-                        RawRangeQuery.withRange(Optional.empty(), Optional.empty())));
+                        RawRangeQuery.withNoBounds()));
 
         System.out.println("|||" + scanResult);
         final Map<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> partitionResults =
@@ -361,8 +361,7 @@ public class IQv2IntegrationTest {
         final byte[] rawKey = serdes.rawKey(1);
         final InteractiveQueryResult<KeyValueIterator<Bytes, byte[]>> rangeResult =
                 kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(
-                        RawRangeQuery.withRange(Optional.of(Bytes.wrap(serdes.rawKey(1))),
-                                Optional.of(Bytes.wrap(serdes.rawKey(2))))));
+                        RawRangeQuery.withRange(Bytes.wrap(serdes.rawKey(1)), Bytes.wrap(serdes.rawKey(2)))));
 
         System.out.println("|||" + rangeResult);
         final Map<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> partitionResults =

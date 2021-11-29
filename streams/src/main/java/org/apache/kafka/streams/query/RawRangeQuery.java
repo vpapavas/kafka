@@ -32,8 +32,20 @@ public class RawRangeQuery implements Query<KeyValueIterator<Bytes, byte[]>> {
         this.upper = upper;
     }
 
-    public static RawRangeQuery withRange(final Optional<Bytes> lower, final Optional<Bytes> upper) {
-        return new RawRangeQuery(lower, upper);
+    public static RawRangeQuery withRange(final Bytes lower, final Bytes upper) {
+        return new RawRangeQuery(Optional.of(lower), Optional.of(upper));
+    }
+
+    public static RawRangeQuery withUpperBound(final Bytes upper) {
+        return new RawRangeQuery(Optional.empty(), Optional.of(upper));
+    }
+
+    public static RawRangeQuery withLowerBound(final Bytes lower) {
+        return new RawRangeQuery(Optional.of(lower), Optional.empty());
+    }
+
+    public static RawRangeQuery withNoBounds() {
+        return new RawRangeQuery(Optional.empty(), Optional.empty());
     }
 
     public Optional<Bytes> getLowerBound() {
