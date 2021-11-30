@@ -42,6 +42,7 @@ import org.apache.kafka.streams.query.Iterators;
 import org.apache.kafka.streams.query.KeyQuery;
 import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.query.QueryResult;
+import org.apache.kafka.streams.query.RangeQuery;
 import org.apache.kafka.streams.query.RawKeyQuery;
 import org.apache.kafka.streams.query.RawRangeQuery;
 import org.apache.kafka.streams.query.RawScanQuery;
@@ -354,7 +355,7 @@ public class IQv2IntegrationTest {
     }
 
     @Test
-    public void shouldRangeUncachedTablePartitions() {
+    public void shouldRawRangeUncachedTablePartitions() {
 
         final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
                 kafkaStreams.serdesForStore(UNCACHED_TABLE);
@@ -375,6 +376,36 @@ public class IQv2IntegrationTest {
                             "|||" + entry.getKey() +
                                     " " + serdes.keyFrom(next.key.get()) +
                                     " " + serdes.valueFrom(next.value)
+                    );
+                }
+            }
+        }
+
+        assertThat(rangeResult.getPosition(),
+                is(Position.fromMap(
+                        mkMap(mkEntry("input-topic", mkMap(mkEntry(0, 0L), mkEntry(1, 1L)))))));
+    }
+
+    @Test
+    public void shouldRangeUncachedTablePartitions() {
+
+        final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
+                kafkaStreams.serdesForStore(UNCACHED_TABLE);
+        final InteractiveQueryResult<KeyValueIterator<Integer, Integer>> rangeResult =
+                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(RangeQuery.withRange(1, 2)));
+
+        System.out.println("|||" + rangeResult);
+        final Map<Integer, QueryResult<KeyValueIterator<Integer, Integer>>> partitionResults =
+                rangeResult.getPartitionResults();
+        for (final Entry<Integer, QueryResult<KeyValueIterator<Integer, Integer>>> entry : partitionResults.entrySet()) {
+            try (final KeyValueIterator<Integer, Integer> keyValueIterator =
+                         entry.getValue().getResult()) {
+                while (keyValueIterator.hasNext()) {
+                    final KeyValue<Integer, Integer> next = keyValueIterator.next();
+                    System.out.println(
+                            "|||" + entry.getKey() +
+                                    " " + next.key +
+                                    " " + next.value
                     );
                 }
             }

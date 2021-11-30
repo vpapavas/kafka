@@ -17,9 +17,11 @@
 
 package org.apache.kafka.streams.query;
 
+import org.apache.kafka.streams.state.KeyValueIterator;
+
 import java.util.Optional;
 
-public class RangeQuery<K, V> implements Query<V> {
+public class RangeQuery<K, V> implements Query<KeyValueIterator<K, V>> {
 
     private final Optional<K> lower;
     private final Optional<K> upper;
