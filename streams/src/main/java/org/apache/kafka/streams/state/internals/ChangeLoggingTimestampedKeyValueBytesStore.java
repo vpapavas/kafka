@@ -19,6 +19,8 @@ package org.apache.kafka.streams.state.internals;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.state.KeyValueStore;
 
+import java.util.Optional;
+
 import static org.apache.kafka.streams.state.internals.ValueAndTimestampDeserializer.rawValue;
 import static org.apache.kafka.streams.state.internals.ValueAndTimestampDeserializer.timestamp;
 
@@ -32,10 +34,14 @@ public class ChangeLoggingTimestampedKeyValueBytesStore extends ChangeLoggingKey
     @SuppressWarnings("unchecked")
     void log(final Bytes key,
              final byte[] valueAndTimestamp) {
+        Optional<Position> optionalPosition = Optional.empty();
+        if (consistencyEnabled) {
+            optionalPosition = Optional.of(position);
+        }
         if (valueAndTimestamp != null) {
-            context.logChange(name(), key, rawValue(valueAndTimestamp), timestamp(valueAndTimestamp), position);
+            context.logChange(name(), key, rawValue(valueAndTimestamp), timestamp(valueAndTimestamp), optionalPosition);
         } else {
-            context.logChange(name(), key, null, context.timestamp(), position);
+            context.logChange(name(), key, null, context.timestamp(), optionalPosition);
         }
     }
 }

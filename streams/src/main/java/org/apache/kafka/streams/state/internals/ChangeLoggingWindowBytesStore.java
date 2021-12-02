@@ -48,10 +48,10 @@ class ChangeLoggingWindowBytesStore
 
     private final boolean retainDuplicates;
     InternalProcessorContext context;
-    Optional<Position> position;
+    Position position;
+    boolean consistencyEnabled = false;
     private int seqnum = 0;
     private final ChangeLoggingKeySerializer keySerializer;
-    private boolean consistencyEnabled = false;
 
     ChangeLoggingWindowBytesStore(final WindowStore<Bytes, byte[]> bytesStore,
                                   final boolean retainDuplicates,
@@ -59,7 +59,7 @@ class ChangeLoggingWindowBytesStore
         super(bytesStore);
         this.retainDuplicates = retainDuplicates;
         this.keySerializer = requireNonNull(keySerializer, "keySerializer");
-        this.position = Optional.empty();
+        this.position = Position.emptyPosition();
     }
 
     @Deprecated
@@ -79,9 +79,6 @@ class ChangeLoggingWindowBytesStore
                 context.appConfigs(),
                 IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
                 false);
-        if (consistencyEnabled) {
-            position = Optional.of(Position.emptyPosition());
-        }
     }
 
     @Override
@@ -148,17 +145,20 @@ class ChangeLoggingWindowBytesStore
                     final byte[] value,
                     final long windowStartTimestamp) {
         wrapped().put(key, value, windowStartTimestamp);
-        if (consistencyEnabled && context != null && context.recordMetadata().isPresent()) {
+        if (context != null && context.recordMetadata().isPresent()) {
             final RecordMetadata meta = context.recordMetadata().get();
-            position.get().update(meta.topic(), meta.partition(), meta.offset());
+            position = position.update(meta.topic(), meta.partition(), meta.offset());
         }
         log(keySerializer.serialize(key, windowStartTimestamp, maybeUpdateSeqnumForDups()), value);
     }
 
     @SuppressWarnings("unchecked")
-    void log(final Bytes key,
-             final byte[] value) {
-        context.logChange(name(), key, value, context.timestamp(), position);
+    void log(final Bytes key, final byte[] value) {
+        Optional<Position> optionalPosition = Optional.empty();
+        if (consistencyEnabled) {
+            optionalPosition = Optional.of(position);
+        }
+        context.logChange(name(), key, value, context.timestamp(), optionalPosition);
     }
 
     private int maybeUpdateSeqnumForDups() {

@@ -23,7 +23,6 @@ import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.state.internals.Position;
 
 import java.nio.ByteBuffer;
-import java.util.Optional;
 
 /**
  * Changelog records without any headers are considered old format.
@@ -44,7 +43,7 @@ public class ChangelogRecordDeserializationHelper {
     public static void applyChecksAndUpdatePosition(
             final ConsumerRecord<byte[], byte[]> record,
             final boolean consistencyEnabled,
-            final Optional<Position> position
+            final Position position
     ) {
         final Header versionHeader = record.headers().lastHeader(
                 ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_KEY);
@@ -71,7 +70,7 @@ public class ChangelogRecordDeserializationHelper {
                         "contains records without consistency information.");
             }
 
-            position.get().merge(Position.deserialize(ByteBuffer.wrap(vectorHeader.value())));
+            position.merge(Position.deserialize(ByteBuffer.wrap(vectorHeader.value())));
         }
     }
 

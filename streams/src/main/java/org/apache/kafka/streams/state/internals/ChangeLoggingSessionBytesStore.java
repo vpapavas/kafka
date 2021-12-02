@@ -41,12 +41,12 @@ class ChangeLoggingSessionBytesStore
     implements SessionStore<Bytes, byte[]> {
 
     private InternalProcessorContext context;
-    private Optional<Position> position;
+    private Position position;
     private boolean consistencyEnabled = false;
 
     ChangeLoggingSessionBytesStore(final SessionStore<Bytes, byte[]> bytesStore) {
         super(bytesStore);
-        this.position = Optional.empty();
+        this.position = Position.emptyPosition();
     }
 
     @Deprecated
@@ -64,9 +64,6 @@ class ChangeLoggingSessionBytesStore
                 context.appConfigs(),
                 IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
                 false);
-        if (consistencyEnabled) {
-            position = Optional.of(Position.emptyPosition());
-        }
     }
 
     @Override
@@ -96,23 +93,32 @@ class ChangeLoggingSessionBytesStore
     @Override
     @SuppressWarnings("unchecked")
     public void remove(final Windowed<Bytes> sessionKey) {
-        if (consistencyEnabled && context.recordMetadata().isPresent()) {
+        if (context.recordMetadata().isPresent()) {
             final RecordMetadata meta = context.recordMetadata().get();
-            position.get().update(meta.topic(), meta.partition(), meta.offset());
+            position = position.update(meta.topic(), meta.partition(), meta.offset());
         }
         wrapped().remove(sessionKey);
-        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), null, context.timestamp(), position);
+        Optional<Position> optionalPosition = Optional.empty();
+        if (consistencyEnabled) {
+            optionalPosition = Optional.of(position);
+        }
+        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), null, context.timestamp(), optionalPosition);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void put(final Windowed<Bytes> sessionKey, final byte[] aggregate) {
-        if (consistencyEnabled && context.recordMetadata().isPresent()) {
+        if (context.recordMetadata().isPresent()) {
             final RecordMetadata meta = context.recordMetadata().get();
-            position.get().update(meta.topic(), meta.partition(), meta.offset());
+            position = position.update(meta.topic(), meta.partition(), meta.offset());
         }
         wrapped().put(sessionKey, aggregate);
-        context.logChange(name(), SessionKeySchema.toBinary(sessionKey), aggregate, context.timestamp(), position);
+        Optional<Position> optionalPosition = Optional.empty();
+        if (consistencyEnabled) {
+            optionalPosition = Optional.of(position);
+        }
+        context.logChange(
+                name(), SessionKeySchema.toBinary(sessionKey), aggregate, context.timestamp(), optionalPosition);
     }
 
     @Override

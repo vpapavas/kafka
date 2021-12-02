@@ -42,6 +42,7 @@ import org.apache.kafka.streams.kstream.internals.SessionWindow;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.ChangelogRecordDeserializationHelper;
 import org.apache.kafka.streams.processor.internals.MockStreamsMetrics;
+import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.Task.TaskType;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.testutil.LogCaptureAppender;
@@ -537,6 +538,28 @@ public abstract class AbstractRocksDBSegmentedBytesStoreTest<S extends Segment> 
     }
 
     @Test
+    public void shouldMatchPositionAfterPut() {
+        bytesStore.init((StateStoreContext) context, bytesStore);
+
+        final String keyA = "a";
+        final String keyB = "b";
+        final String keyC = "c";
+
+        context.setRecordContext(new ProcessorRecordContext(0, 1, 0, "", new RecordHeaders()));
+        bytesStore.put(serializeKey(new Windowed<>(keyA, windows[0])), serializeValue(10));
+        context.setRecordContext(new ProcessorRecordContext(0, 2, 0, "", new RecordHeaders()));
+        bytesStore.put(serializeKey(new Windowed<>(keyA, windows[1])), serializeValue(50));
+        context.setRecordContext(new ProcessorRecordContext(0, 3, 0, "", new RecordHeaders()));
+        bytesStore.put(serializeKey(new Windowed<>(keyB, windows[2])), serializeValue(100));
+        context.setRecordContext(new ProcessorRecordContext(0, 4, 0, "", new RecordHeaders()));
+        bytesStore.put(serializeKey(new Windowed<>(keyC, windows[3])), serializeValue(200));
+
+        final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 4L)))));
+        final Position actual = bytesStore.getPosition();
+        assertEquals(expected, actual);
+    }
+
+    @Test
     public void shouldRestoreRecordsAndConsistencyVectorSingleTopic() {
         final Properties props = StreamsTestUtils.getStreamsConfig();
         props.put(InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED, true);
@@ -568,9 +591,9 @@ public abstract class AbstractRocksDBSegmentedBytesStoreTest<S extends Segment> 
 
         final List<KeyValue<Windowed<String>, Long>> results = toList(bytesStore.all());
         assertEquals(expected, results);
-        assertThat(bytesStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound(""), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound(""), hasEntry(0, 3L));
+        assertThat(bytesStore.getPosition(), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound(""), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound(""), hasEntry(0, 3L));
     }
 
     @Test
@@ -605,11 +628,11 @@ public abstract class AbstractRocksDBSegmentedBytesStoreTest<S extends Segment> 
 
         final List<KeyValue<Windowed<String>, Long>> results = toList(bytesStore.all());
         assertEquals(expected, results);
-        assertThat(bytesStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound("A"), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound("A"), hasEntry(0, 3L));
-        assertThat(bytesStore.getPosition().get().getBound("B"), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound("B"), hasEntry(0, 2L));
+        assertThat(bytesStore.getPosition(), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound("A"), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound("A"), hasEntry(0, 3L));
+        assertThat(bytesStore.getPosition().getBound("B"), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound("B"), hasEntry(0, 2L));
     }
 
     @Test
@@ -641,8 +664,8 @@ public abstract class AbstractRocksDBSegmentedBytesStoreTest<S extends Segment> 
 
         final List<KeyValue<Windowed<String>, Long>> results = toList(bytesStore.all());
         assertEquals(expected, results);
-        assertThat(bytesStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(bytesStore.getPosition().get().getBound("A"), hasEntry(0, 2L));
+        assertThat(bytesStore.getPosition(), Matchers.notNullValue());
+        assertThat(bytesStore.getPosition().getBound("A"), hasEntry(0, 2L));
     }
 
     @Test

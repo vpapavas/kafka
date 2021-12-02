@@ -39,12 +39,12 @@ public class ChangeLoggingKeyValueBytesStore
     implements KeyValueStore<Bytes, byte[]> {
 
     InternalProcessorContext context;
-    Optional<Position> position;
-    private boolean consistencyEnabled = false;
+    Position position;
+    boolean consistencyEnabled = false;
 
     ChangeLoggingKeyValueBytesStore(final KeyValueStore<Bytes, byte[]> inner) {
         super(inner);
-        this.position = Optional.empty();
+        this.position = Position.emptyPosition();
     }
 
     @Deprecated
@@ -66,9 +66,6 @@ public class ChangeLoggingKeyValueBytesStore
                 context.appConfigs(),
                 IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
                 false);
-        if (consistencyEnabled) {
-            position = Optional.of(Position.emptyPosition());
-        }
     }
 
     private void maybeSetEvictionListener() {
@@ -90,9 +87,9 @@ public class ChangeLoggingKeyValueBytesStore
     public void put(final Bytes key,
                     final byte[] value) {
         wrapped().put(key, value);
-        if (consistencyEnabled && context != null && context.recordMetadata().isPresent()) {
+        if (context != null && context.recordMetadata().isPresent()) {
             final RecordMetadata meta = context.recordMetadata().get();
-            position.get().update(meta.topic(), meta.partition(), meta.offset());
+            position = position.update(meta.topic(), meta.partition(), meta.offset());
         }
         log(key, value);
     }
@@ -158,6 +155,10 @@ public class ChangeLoggingKeyValueBytesStore
 
     @SuppressWarnings("unchecked")
     void log(final Bytes key, final byte[] value) {
-        context.logChange(name(), key, value, context.timestamp(), position);
+        Optional<Position> optionalPosition = Optional.empty();
+        if (consistencyEnabled) {
+            optionalPosition = Optional.of(position);
+        }
+        context.logChange(name(), key, value, context.timestamp(), optionalPosition);
     }
 }

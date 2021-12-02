@@ -68,7 +68,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
@@ -113,7 +112,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
 
     protected volatile boolean open = false;
     // VisibleForTesting
-    protected Optional<Position> position;
+    protected Position position;
 
     private StateStoreContext context;
 
@@ -129,7 +128,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         this.name = name;
         this.parentDir = parentDir;
         this.metricsRecorder = metricsRecorder;
-        this.position = Optional.empty();
+        this.position = Position.emptyPosition();
     }
 
     @SuppressWarnings("unchecked")
@@ -269,9 +268,6 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
             context.appConfigs(),
             IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
             false);
-        if (consistencyEnabled) {
-            position = Optional.of(Position.emptyPosition());
-        }
     }
 
     @Override
@@ -301,10 +297,9 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         Objects.requireNonNull(key, "key cannot be null");
         validateStoreOpen();
         dbAccessor.put(key.get(), value);
-        if (context != null && context.recordMetadata().isPresent() && consistencyEnabled) {
+        if (context != null && context.recordMetadata().isPresent()) {
             final RecordMetadata meta = context.recordMetadata().get();
-            position = Optional.of(position.get().update(
-                meta.topic(), meta.partition(), meta.offset()));
+            position = position.update(meta.topic(), meta.partition(), meta.offset());
         }
     }
 
@@ -324,10 +319,9 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         try (final WriteBatch batch = new WriteBatch()) {
             dbAccessor.prepareBatch(entries, batch);
             // FIXME Will the recordMetadata be the offset of the last record in the batch?
-            if (context != null && context.recordMetadata().isPresent() && consistencyEnabled) {
+            if (context != null && context.recordMetadata().isPresent()) {
                 final RecordMetadata meta = context.recordMetadata().get();
-                position = Optional.of(position.get().update(
-                        meta.topic(), meta.partition(), meta.offset()));
+                position = position.update(meta.topic(), meta.partition(), meta.offset());
             }
             write(batch);
         } catch (final RocksDBException e) {
@@ -733,7 +727,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         return userSpecifiedOptions;
     }
 
-    Optional<Position> getPosition() {
+    Position getPosition() {
         return position;
     }
 }

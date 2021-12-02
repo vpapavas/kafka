@@ -432,7 +432,7 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
             offset++;
         }
 
-        final Position actual = rocksDBStore.getPosition().get();
+        final Position actual = rocksDBStore.getPosition();
         assertEquals(expected, actual);
     }
 
@@ -1022,9 +1022,9 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
                         null,
                         rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
 
-        assertThat(rocksDBStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound(""), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound(""), hasEntry(0, 3L));
+        assertThat(rocksDBStore.getPosition(), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound(""), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound(""), hasEntry(0, 3L));
     }
 
     @Test
@@ -1059,11 +1059,11 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
                         null,
                         rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "3")))));
 
-        assertThat(rocksDBStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound("A"), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound("A"), hasEntry(0, 3L));
-        assertThat(rocksDBStore.getPosition().get().getBound("B"), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound("B"), hasEntry(0, 2L));
+        assertThat(rocksDBStore.getPosition(), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound("A"), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound("A"), hasEntry(0, 3L));
+        assertThat(rocksDBStore.getPosition().getBound("B"), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound("B"), hasEntry(0, 2L));
     }
 
     @Test
@@ -1086,8 +1086,8 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
                 null,
                 rocksDBStore.get(new Bytes(stringSerializer.serialize(null, "1")))));
 
-        assertThat(rocksDBStore.getPosition().get(), Matchers.notNullValue());
-        assertThat(rocksDBStore.getPosition().get().getBound("A"), hasEntry(0, 2L));
+        assertThat(rocksDBStore.getPosition(), Matchers.notNullValue());
+        assertThat(rocksDBStore.getPosition().getBound("A"), hasEntry(0, 2L));
     }
 
     @Test

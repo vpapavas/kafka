@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -143,14 +142,12 @@ public class ConsistencyVectorIntegrationTest {
 
         final AtomicInteger count = new AtomicInteger();
         for (final TestingRocksDBStore store : supplier.stores) {
-            store.getPosition().ifPresent(p -> {
-                if (!p.isUnbounded()) {
-                    assertThat(store.getDbDir().toString().contains("/0_0/"), is(true));
-                    assertThat(p.getBound(INPUT_TOPIC_NAME), notNullValue());
-                    assertThat(p.getBound(INPUT_TOPIC_NAME), hasEntry(0, 99L));
-                    count.incrementAndGet();
-                }
-            });
+            if (!store.getPosition().isUnbounded()) {
+                assertThat(store.getDbDir().toString().contains("/0_0/"), is(true));
+                assertThat(store.getPosition().getBound(INPUT_TOPIC_NAME), notNullValue());
+                assertThat(store.getPosition().getBound(INPUT_TOPIC_NAME), hasEntry(0, 99L));
+                count.incrementAndGet();
+            }
         }
         assertThat(count.get(), is(2));
     }
@@ -160,7 +157,7 @@ public class ConsistencyVectorIntegrationTest {
             super(name, metricsScope);
         }
 
-        public Optional<Position> getPosition() {
+        public Position getPosition() {
             return position;
         }
 
