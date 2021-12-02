@@ -48,6 +48,7 @@ import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.ChangelogRecordDeserializationHelper;
+import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -89,6 +90,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.kafka.common.utils.Utils.mkEntry;
+import static org.apache.kafka.common.utils.Utils.mkMap;
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.isNull;
 import static org.easymock.EasyMock.mock;
@@ -399,41 +402,19 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
 
     @Test
     public void shouldMatchPositionAfterPut() {
-        final List<KeyValue<Bytes, byte[]>> entries = new ArrayList<>();
-        entries.add(new KeyValue<>(
-            new Bytes(stringSerializer.serialize(null, "1")),
-            stringSerializer.serialize(null, "a")));
-        entries.add(new KeyValue<>(
-            new Bytes(stringSerializer.serialize(null, "2")),
-            stringSerializer.serialize(null, "b")));
-        entries.add(new KeyValue<>(
-            new Bytes(stringSerializer.serialize(null, "3")),
-            stringSerializer.serialize(null, "c")));
-
-        final Properties props = StreamsTestUtils.getStreamsConfig();
-        props.put(StreamsConfig.ROCKSDB_CONFIG_SETTER_CLASS_CONFIG, MockRocksDbConfigSetter.class);
-        props.put(InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED, true);
-        dir = TestUtils.tempDirectory();
-        context = new InternalMockProcessorContext<>(
-                dir,
-                Serdes.String(),
-                Serdes.String(),
-                new StreamsConfig(props)
-        );
-        final MonotonicProcessorRecordContext recordContext = new MonotonicProcessorRecordContext("input", 0);
-        context.setRecordContext(recordContext);
         rocksDBStore.init((StateStoreContext) context, rocksDBStore);
 
-        final Position expected = Position.emptyPosition();
-        long offset = 0;
-        for (final KeyValue<Bytes, byte[]> k : entries) {
-            rocksDBStore.put(k.key, k.value);
-            expected.update("input", 0, offset);
-            offset++;
-        }
+        context.setRecordContext(new ProcessorRecordContext(0, 1, 0, "", new RecordHeaders()));
+        rocksDBStore.put(new Bytes(stringSerializer.serialize(null, "one")), stringSerializer.serialize(null, "A"));
+        context.setRecordContext(new ProcessorRecordContext(0, 2, 0, "", new RecordHeaders()));
+        rocksDBStore.put(new Bytes(stringSerializer.serialize(null, "two")), stringSerializer.serialize(null, "B"));
+        context.setRecordContext(new ProcessorRecordContext(0, 3, 0, "", new RecordHeaders()));
+        rocksDBStore.put(new Bytes(stringSerializer.serialize(null, "three")), stringSerializer.serialize(null, "C"));
 
+        final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 3L)))));
         final Position actual = rocksDBStore.getPosition();
         assertEquals(expected, actual);
+
     }
 
     @Test

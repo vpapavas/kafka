@@ -69,22 +69,6 @@ public class RocksDBSessionStoreTest extends AbstractSessionBytesStoreTest {
 
     @Test
     public void shouldMatchPositionAfterPut() {
-//        final List<KeyValue<Windowed<String>, Long>> entries = new ArrayList<>();
-//        entries.add(new KeyValue<>(new Windowed<String>("a", new SessionWindow(0, 0)), 1L));
-//        entries.add(new KeyValue<>(new Windowed<String>("aa", new SessionWindow(0, SEGMENT_INTERVAL)), 2L));
-//        entries.add(new KeyValue<>(new Windowed<String>("a", new SessionWindow(10, SEGMENT_INTERVAL)), 3L));
-//
-//        final MonotonicProcessorRecordContext recordContext = new MonotonicProcessorRecordContext("input", 0);
-//        context.setRecordContext(recordContext);
-//
-//        final Position expected = Position.emptyPosition();
-//        long offset = 0;
-//        for (final KeyValue<Windowed<String>, Long> k : entries) {
-//            sessionStore.put(k.key, k.value);
-//            expected.update("input", 0, offset);
-//            offset++;
-//        }
-
         final MeteredSessionStore<String, Long> meteredSessionStore = (MeteredSessionStore<String, Long>) sessionStore;
         final ChangeLoggingSessionBytesStore changeLoggingSessionBytesStore = (ChangeLoggingSessionBytesStore) meteredSessionStore.wrapped();
         final RocksDBSessionStore rocksDBSessionStore = (RocksDBSessionStore) changeLoggingSessionBytesStore.wrapped();

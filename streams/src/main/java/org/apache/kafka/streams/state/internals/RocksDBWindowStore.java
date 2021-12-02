@@ -31,6 +31,7 @@ public class RocksDBWindowStore
 
     private final boolean retainDuplicates;
     private final long windowSize;
+
     private int seqnum = 0;
 
     private Position position;
