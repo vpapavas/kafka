@@ -112,6 +112,7 @@ public class ChangeLoggingSessionBytesStoreTest {
         final Bytes binaryKey = SessionKeySchema.toBinary(key1);
 
         EasyMock.reset(context);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), binaryKey, value1, 0L, Optional.empty());
 
         EasyMock.replay(context);
@@ -153,6 +154,7 @@ public class ChangeLoggingSessionBytesStoreTest {
         final Bytes binaryKey = SessionKeySchema.toBinary(key1);
 
         EasyMock.reset(context);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), binaryKey, null, 0L, Optional.empty());
 
         EasyMock.replay(context);

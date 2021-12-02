@@ -414,7 +414,6 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
         final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 3L)))));
         final Position actual = rocksDBStore.getPosition();
         assertEquals(expected, actual);
-
     }
 
     @Test

@@ -226,10 +226,14 @@ public class AbstractRocksDBSegmentedBytesStore<S extends Segment> implements Se
             expiredRecordSensor.record(1.0d, ProcessorContextUtils.currentSystemTime(context));
             LOG.warn("Skipping record for expired segment.");
         } else {
-            final InternalProcessorContext internalContext = asInternalProcessorContext(context);
-            if (internalContext != null && internalContext.recordMetadata().isPresent()) {
-                final RecordMetadata meta = internalContext.recordMetadata().get();
-                position = position.update(meta.topic(), meta.partition(), meta.offset());
+            try {
+                final InternalProcessorContext internalContext = asInternalProcessorContext(context);
+                if (internalContext != null && internalContext.recordMetadata().isPresent()) {
+                    final RecordMetadata meta = internalContext.recordMetadata().get();
+                    position = position.update(meta.topic(), meta.partition(), meta.offset());
+                }
+            } catch(IllegalArgumentException e) {
+                LOG.warn("Cannot update position as context does not have record metadata information.");
             }
             segment.put(key, value);
         }

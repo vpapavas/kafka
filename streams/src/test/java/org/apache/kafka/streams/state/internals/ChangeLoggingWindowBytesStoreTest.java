@@ -111,6 +111,7 @@ public class ChangeLoggingWindowBytesStoreTest {
 
         EasyMock.reset(context);
         EasyMock.expect(context.timestamp()).andStubReturn(0L);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), key, value, 0L, Optional.empty());
 
         EasyMock.replay(context);
@@ -181,6 +182,7 @@ public class ChangeLoggingWindowBytesStoreTest {
 
         EasyMock.reset(context);
         EasyMock.expect(context.timestamp()).andStubReturn(0L);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), key1, value, 0L, Optional.empty());
         context.logChange(store.name(), key2, value, 0L, Optional.empty());
 

@@ -115,8 +115,7 @@ public class ChangeLoggingTimestampedWindowBytesStoreTest {
         final Bytes key = WindowKeySchema.toStoreKeyBinary(bytesKey, 0, 0);
 
         EasyMock.reset(context);
-        System.out.println("Expected = " + store.name() + ", key = " + key + ", value = " + value
-                + ",timestamp," + 42);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), key, value, 42, Optional.empty());
 
         EasyMock.replay(context);
@@ -183,6 +182,7 @@ public class ChangeLoggingTimestampedWindowBytesStoreTest {
         final Bytes key2 = WindowKeySchema.toStoreKeyBinary(bytesKey, 0, 2);
 
         EasyMock.reset(context);
+        EasyMock.expect(context.recordMetadata()).andStubReturn(Optional.empty());
         context.logChange(store.name(), key1, value, 42L, Optional.empty());
         context.logChange(store.name(), key2, value, 42L, Optional.empty());
 
