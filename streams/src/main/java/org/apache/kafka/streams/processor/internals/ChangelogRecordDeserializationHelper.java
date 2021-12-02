@@ -16,7 +16,14 @@
  */
 package org.apache.kafka.streams.processor.internals;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.streams.errors.StreamsException;
+import org.apache.kafka.streams.state.internals.Position;
+
+import java.nio.ByteBuffer;
+import java.util.Optional;
 
 /**
  * Changelog records without any headers are considered old format.
@@ -33,6 +40,40 @@ public class ChangelogRecordDeserializationHelper {
             CHANGELOG_VERSION_HEADER_KEY, V_0_CHANGELOG_VERSION_HEADER_VALUE);
     public static final RecordHeader CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY = new RecordHeader(
             CHANGELOG_VERSION_HEADER_KEY, V_1_CHANGELOG_VERSION_HEADER_VALUE);
+
+    public static void applyChecksAndUpdatePosition(
+            final ConsumerRecord<byte[], byte[]> record,
+            final boolean consistencyEnabled,
+            final Optional<Position> position
+    ) {
+        final Header versionHeader = record.headers().lastHeader(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_KEY);
+
+        if (versionHeader == null && consistencyEnabled) {
+            throw new StreamsException("This should not happen. Consistency requires changelog records with " +
+                    "headers.");
+        }
+        if (versionHeader != null
+                && versionHeader.equals(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY)
+                && !consistencyEnabled) {
+            throw new StreamsException("This should not happen. Consistency is not enabled but the changelog " +
+                    "contains records with consistency information.");
+        }
+        if (versionHeader != null
+                && versionHeader.equals(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY)
+                && consistencyEnabled) {
+
+            final Header vectorHeader = record.headers().lastHeader(Position.VECTOR_KEY);
+            if (vectorHeader == null) {
+                throw new StreamsException("This should not happen. Consistency is enabled but the changelog " +
+                        "contains records without consistency information.");
+            }
+
+            position.get().merge(Position.deserialize(ByteBuffer.wrap(vectorHeader.value())));
+        }
+    }
 
 
 }

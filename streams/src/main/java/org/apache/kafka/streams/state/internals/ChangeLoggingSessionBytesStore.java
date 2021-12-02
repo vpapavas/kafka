@@ -96,6 +96,10 @@ class ChangeLoggingSessionBytesStore
     @Override
     @SuppressWarnings("unchecked")
     public void remove(final Windowed<Bytes> sessionKey) {
+        if (consistencyEnabled && context.recordMetadata().isPresent()) {
+            final RecordMetadata meta = context.recordMetadata().get();
+            position.get().update(meta.topic(), meta.partition(), meta.offset());
+        }
         wrapped().remove(sessionKey);
         context.logChange(name(), SessionKeySchema.toBinary(sessionKey), null, context.timestamp(), position);
     }

@@ -131,9 +131,11 @@ public class ProcessorContextImpl extends AbstractProcessorContext<Object, Objec
         if (!consistencyEnabled) {
             headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_DEFAULT);
         } else {
-            // Add the vector clock to the header part of every record
-            headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-            headers.add(new RecordHeader(Position.VECTOR_KEY, position.get().serialize().array()));
+            if (position.isPresent()) {
+                // Add the vector clock to the header part of every record
+                headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+                headers.add(new RecordHeader(Position.VECTOR_KEY, position.get().serialize().array()));
+            }
         }
 
         collector.send(

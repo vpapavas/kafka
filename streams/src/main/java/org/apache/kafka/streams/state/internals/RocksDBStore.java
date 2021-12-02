@@ -17,7 +17,6 @@
 package org.apache.kafka.streams.state.internals;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.metrics.Sensor.RecordingLevel;
 import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Bytes;
@@ -26,7 +25,6 @@ import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.InvalidStateStoreException;
 import org.apache.kafka.streams.errors.ProcessorStateException;
-import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
@@ -62,7 +60,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -719,35 +716,7 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         try (final WriteBatch batch = new WriteBatch()) {
             final List<KeyValue<byte[], byte[]>> keyValues = new ArrayList<>();
             for (final ConsumerRecord<byte[], byte[]> record : records) {
-
-                final Header versionHeader = record.headers().lastHeader(
-                        ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_KEY);
-
-                if (versionHeader == null && consistencyEnabled) {
-                    throw new StreamsException("This should not happen. Consistency requires changelog records with " +
-                            "headers.");
-                }
-                if (versionHeader != null
-                        && versionHeader.equals(
-                                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY)
-                        && !consistencyEnabled) {
-                    throw new StreamsException("This should not happen. Consistency is not enabled but the changelog " +
-                            "contains records with consistency information.");
-                }
-                if (versionHeader != null
-                        && versionHeader.equals(
-                                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY)
-                        && consistencyEnabled) {
-
-                    final Header vectorHeader = record.headers().lastHeader(Position.VECTOR_KEY);
-                    if (vectorHeader == null) {
-                        throw new StreamsException("This should not happen. Consistency is enabled but the changelog " +
-                                "contains records without consistency information.");
-                    }
-
-                    position.get().merge(Position.deserialize(ByteBuffer.wrap(vectorHeader.value())));
-                }
-
+                ChangelogRecordDeserializationHelper.applyChecksAndUpdatePosition(record, consistencyEnabled, position);
                 // If version headers are not present or version is V0
                 keyValues.add(new KeyValue<>(record.key(), record.value()));
             }
