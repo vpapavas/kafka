@@ -231,7 +231,6 @@ public class CachingInMemoryKeyValueStoreTest extends AbstractKeyValueStoreTest 
         final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 3L)))));
         final Position actual = store.getPosition();
         assertEquals(expected, actual);
-
     }
 
     private byte[] bytesValue(final String value) {
