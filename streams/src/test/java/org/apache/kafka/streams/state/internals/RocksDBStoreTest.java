@@ -16,8 +16,6 @@
  */
 package org.apache.kafka.streams.state.internals;
 
-import java.util.Optional;
-
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
@@ -50,6 +48,7 @@ import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.internals.ChangelogRecordDeserializationHelper;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.RocksDBConfigSetter;
@@ -84,6 +83,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -1091,71 +1091,131 @@ public class RocksDBStoreTest extends AbstractKeyValueStoreTest {
 
     private List<ConsumerRecord<byte[], byte[]>> getChangelogRecords() {
         final List<ConsumerRecord<byte[], byte[]>> entries = new ArrayList<>();
-        final Headers headers = new RecordHeaders();
-        Position position1 = Position.emptyPosition();
-        position1 = position1.update("", 0, 1);
 
-        headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("", 0, 1);
+
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "1".getBytes(UTF_8), "a".getBytes(UTF_8), headers, Optional.empty()));
-
-        headers.remove(Position.VECTOR_KEY);
-        position1 = position1.update("", 0, 2);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        }
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("", 0, 2);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "2".getBytes(UTF_8), "b".getBytes(UTF_8), headers, Optional.empty()));
-
-        headers.remove(Position.VECTOR_KEY);
-        position1 = position1.update("", 0, 3);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        }
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("", 0, 3);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "3".getBytes(UTF_8), "c".getBytes(UTF_8), headers, Optional.empty()));
-        return entries;
+            return entries;
+        }
     }
 
     private List<ConsumerRecord<byte[], byte[]>> getChangelogRecordsMultipleTopics() {
         final List<ConsumerRecord<byte[], byte[]>> entries = new ArrayList<>();
-        final Headers headers = new RecordHeaders();
-        Position position1 = Position.emptyPosition();
 
-        position1 = position1.update("A", 0, 1);
-        headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("A", 0, 1);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "1".getBytes(UTF_8), "a".getBytes(UTF_8), headers, Optional.empty()));
-
-        headers.remove(Position.VECTOR_KEY);
-        position1 = position1.update("B", 0, 2);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        }
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("B", 0, 2);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "2".getBytes(UTF_8), "b".getBytes(UTF_8), headers, Optional.empty()));
-
-        headers.remove(Position.VECTOR_KEY);
-        position1 = position1.update("A", 0, 3);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position1.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        }
+        {
+            final Position position1 = Position
+                .emptyPosition()
+                .withComponent("A", 0, 3);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position1).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "3".getBytes(UTF_8), "c".getBytes(UTF_8), headers, Optional.empty()));
+        }
         return entries;
     }
 
     private List<ConsumerRecord<byte[], byte[]>> getChangelogRecordsWithTombstones() {
         final List<ConsumerRecord<byte[], byte[]>> entries = new ArrayList<>();
-        final Headers headers = new RecordHeaders();
-        Position position = Position.emptyPosition();
-
-        position = position.update("A", 0, 1);
-        headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        {
+            final Position position = Position
+                .emptyPosition()
+                .withComponent("A", 0, 1);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "1".getBytes(UTF_8), "a".getBytes(UTF_8), headers, Optional.empty()));
-
-        position = position.update("A", 0, 2);
-        headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-        headers.add(new RecordHeader(Position.VECTOR_KEY, position.serialize().array()));
-        entries.add(new ConsumerRecord<>("", 0, 0L,  RecordBatch.NO_TIMESTAMP, TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
+        }
+        {
+            final Position position = Position
+                .emptyPosition()
+                .withComponent("A", 0, 2);
+            final Headers headers = new RecordHeaders();
+            headers.add(
+                ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
+            headers.add(new RecordHeader(
+                ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                PositionSerde.serialize(position).array()));
+            entries.add(new ConsumerRecord<>("", 0, 0L, RecordBatch.NO_TIMESTAMP,
+                TimestampType.NO_TIMESTAMP_TYPE, -1, -1,
                 "1".getBytes(UTF_8), null, headers, Optional.empty()));
-
+        }
         return entries;
     }
 

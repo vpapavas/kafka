@@ -24,13 +24,14 @@ import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.errors.ProcessorStateException;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
+import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.ChangelogRecordDeserializationHelper;
-import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorContextUtils;
 import org.apache.kafka.streams.processor.internals.RecordBatchingStateRestoreCallback;
+import org.apache.kafka.streams.processor.internals.StoreToProcessorContextAdapter;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.processor.internals.metrics.TaskMetrics;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteBatch;
@@ -43,7 +44,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.kafka.streams.StreamsConfig.InternalConfig.IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED;
-import static org.apache.kafka.streams.processor.internals.ProcessorContextUtils.asInternalProcessorContext;
 
 public class AbstractRocksDBSegmentedBytesStore<S extends Segment> implements SegmentedBytesStore {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractRocksDBSegmentedBytesStore.class);
@@ -54,6 +54,7 @@ public class AbstractRocksDBSegmentedBytesStore<S extends Segment> implements Se
     private final KeySchema keySchema;
 
     private ProcessorContext context;
+    private StateStoreContext stateStoreContext;
     private Sensor expiredRecordSensor;
     private long observedStreamTime = ConsumerRecord.NO_TIMESTAMP;
     private boolean consistencyEnabled = false;
@@ -226,15 +227,7 @@ public class AbstractRocksDBSegmentedBytesStore<S extends Segment> implements Se
             expiredRecordSensor.record(1.0d, ProcessorContextUtils.currentSystemTime(context));
             LOG.warn("Skipping record for expired segment.");
         } else {
-            try {
-                final InternalProcessorContext internalContext = asInternalProcessorContext(context);
-                if (internalContext != null && internalContext.recordMetadata().isPresent()) {
-                    final RecordMetadata meta = internalContext.recordMetadata().get();
-                    position = position.update(meta.topic(), meta.partition(), meta.offset());
-                }
-            } catch (final IllegalArgumentException e) {
-                LOG.warn("Cannot update position as context does not have record metadata information.");
-            }
+            StoreQueryUtils.updatePosition(position, stateStoreContext);
             segment.put(key, value);
         }
     }
@@ -280,6 +273,12 @@ public class AbstractRocksDBSegmentedBytesStore<S extends Segment> implements Se
                 context.appConfigs(),
                 IQ_CONSISTENCY_OFFSET_VECTOR_ENABLED,
                 false);
+    }
+
+    @Override
+    public void init(final StateStoreContext context, final StateStore root) {
+        init(StoreToProcessorContextAdapter.adapt(context), root);
+        this.stateStoreContext = context;
     }
 
     @Override

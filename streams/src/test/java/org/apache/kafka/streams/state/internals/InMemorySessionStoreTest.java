@@ -21,6 +21,7 @@ import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.kstream.internals.SessionWindow;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.SessionStore;
 import org.apache.kafka.streams.state.Stores;
@@ -89,17 +90,16 @@ public class InMemorySessionStoreTest extends AbstractSessionBytesStoreTest {
 
     @Test
     public void shouldMatchPositionAfterPut() {
-
         final MeteredSessionStore<String, Long> meteredSessionStore = (MeteredSessionStore<String, Long>) sessionStore;
         final ChangeLoggingSessionBytesStore changeLoggingSessionBytesStore = (ChangeLoggingSessionBytesStore) meteredSessionStore.wrapped();
         final InMemorySessionStore inMemorySessionStore = (InMemorySessionStore) changeLoggingSessionBytesStore.wrapped();
 
         context.setRecordContext(new ProcessorRecordContext(0, 1, 0, "", new RecordHeaders()));
-        sessionStore.put(new Windowed<String>("a", new SessionWindow(0, 0)), 1L);
+        sessionStore.put(new Windowed<>("a", new SessionWindow(0, 0)), 1L);
         context.setRecordContext(new ProcessorRecordContext(0, 2, 0, "", new RecordHeaders()));
-        sessionStore.put(new Windowed<String>("aa", new SessionWindow(0, 10)), 2L);
+        sessionStore.put(new Windowed<>("aa", new SessionWindow(0, 10)), 2L);
         context.setRecordContext(new ProcessorRecordContext(0, 3, 0, "", new RecordHeaders()));
-        sessionStore.put(new Windowed<String>("a", new SessionWindow(10, 20)), 3L);
+        sessionStore.put(new Windowed<>("a", new SessionWindow(10, 20)), 3L);
 
         final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 3L)))));
         final Position actual = inMemorySessionStore.getPosition();

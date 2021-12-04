@@ -22,8 +22,8 @@ import org.apache.kafka.streams.kstream.Windowed;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.StateStore;
 import org.apache.kafka.streams.processor.StateStoreContext;
-import org.apache.kafka.streams.processor.api.RecordMetadata;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.SessionStore;
 
@@ -93,10 +93,7 @@ class ChangeLoggingSessionBytesStore
     @Override
     @SuppressWarnings("unchecked")
     public void remove(final Windowed<Bytes> sessionKey) {
-        if (context.recordMetadata().isPresent()) {
-            final RecordMetadata meta = context.recordMetadata().get();
-            position = position.update(meta.topic(), meta.partition(), meta.offset());
-        }
+        StoreQueryUtils.updatePosition(position, context);
         wrapped().remove(sessionKey);
         Optional<Position> optionalPosition = Optional.empty();
         if (consistencyEnabled) {
@@ -108,10 +105,7 @@ class ChangeLoggingSessionBytesStore
     @Override
     @SuppressWarnings("unchecked")
     public void put(final Windowed<Bytes> sessionKey, final byte[] aggregate) {
-        if (context.recordMetadata().isPresent()) {
-            final RecordMetadata meta = context.recordMetadata().get();
-            position = position.update(meta.topic(), meta.partition(), meta.offset());
-        }
+        StoreQueryUtils.updatePosition(position, context);
         wrapped().put(sessionKey, aggregate);
         Optional<Position> optionalPosition = Optional.empty();
         if (consistencyEnabled) {

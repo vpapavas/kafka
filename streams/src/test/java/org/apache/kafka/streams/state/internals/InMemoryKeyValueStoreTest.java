@@ -25,11 +25,12 @@ import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
+import org.apache.kafka.streams.query.Position;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.KeyValueStoreTestDriver;
-import org.apache.kafka.streams.state.Stores;
 import org.apache.kafka.streams.state.StoreBuilder;
-import org.apache.kafka.streams.state.KeyValueIterator;
+import org.apache.kafka.streams.state.Stores;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -258,7 +259,6 @@ public class InMemoryKeyValueStoreTest extends AbstractKeyValueStoreTest {
         inMemoryKeyValueStore.put(bytesKey("key2"), bytesValue("value2"));
         context.setRecordContext(new ProcessorRecordContext(0, 3, 0, "", new RecordHeaders()));
         inMemoryKeyValueStore.put(bytesKey("key3"), bytesValue("value3"));
-
 
         final Position expected = Position.fromMap(mkMap(mkEntry("", mkMap(mkEntry(0, 3L)))));
         final Position actual = inMemoryKeyValueStore.getPosition();

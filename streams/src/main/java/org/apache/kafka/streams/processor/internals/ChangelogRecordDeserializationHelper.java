@@ -20,7 +20,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.streams.errors.StreamsException;
-import org.apache.kafka.streams.state.internals.Position;
+import org.apache.kafka.streams.query.Position;
+import org.apache.kafka.streams.state.internals.PositionSerde;
 
 import java.nio.ByteBuffer;
 
@@ -31,10 +32,12 @@ import java.nio.ByteBuffer;
  * Version 1: This indicates that the changelog records have consistency information.
  */
 public class ChangelogRecordDeserializationHelper {
+    public static final String CHANGELOG_VERSION_HEADER_KEY = "v";
+    public static final String VECTOR_KEY = "c";
+
     private static final byte[] V_0_CHANGELOG_VERSION_HEADER_VALUE = {(byte) 0};
     private static final byte[] V_1_CHANGELOG_VERSION_HEADER_VALUE = {(byte) 1};
 
-    public static final String CHANGELOG_VERSION_HEADER_KEY = "v";
     public static final RecordHeader CHANGELOG_VERSION_HEADER_RECORD_DEFAULT = new RecordHeader(
             CHANGELOG_VERSION_HEADER_KEY, V_0_CHANGELOG_VERSION_HEADER_VALUE);
     public static final RecordHeader CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY = new RecordHeader(
@@ -64,13 +67,13 @@ public class ChangelogRecordDeserializationHelper {
                 ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY)
                 && consistencyEnabled) {
 
-            final Header vectorHeader = record.headers().lastHeader(Position.VECTOR_KEY);
+            final Header vectorHeader = record.headers().lastHeader(VECTOR_KEY);
             if (vectorHeader == null) {
                 throw new StreamsException("This should not happen. Consistency is enabled but the changelog " +
                         "contains records without consistency information.");
             }
 
-            position.merge(Position.deserialize(ByteBuffer.wrap(vectorHeader.value())));
+            position.merge(PositionSerde.deserialize(ByteBuffer.wrap(vectorHeader.value())));
         }
     }
 
