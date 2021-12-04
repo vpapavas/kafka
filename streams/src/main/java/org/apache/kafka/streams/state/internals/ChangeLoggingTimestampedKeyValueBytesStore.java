@@ -17,6 +17,7 @@
 package org.apache.kafka.streams.state.internals;
 
 import org.apache.kafka.common.utils.Bytes;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.util.Optional;

@@ -32,7 +32,8 @@ import org.apache.kafka.streams.processor.To;
 import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.Task.TaskType;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
-import org.apache.kafka.streams.state.internals.Position;
+import org.apache.kafka.streams.query.Position;
+import org.apache.kafka.streams.state.internals.PositionSerde;
 import org.apache.kafka.streams.state.internals.ThreadCache;
 import org.apache.kafka.streams.state.internals.ThreadCache.DirtyEntryFlushListener;
 
@@ -134,7 +135,10 @@ public class ProcessorContextImpl extends AbstractProcessorContext<Object, Objec
             if (position.isPresent()) {
                 // Add the vector clock to the header part of every record
                 headers.add(ChangelogRecordDeserializationHelper.CHANGELOG_VERSION_HEADER_RECORD_CONSISTENCY);
-                headers.add(new RecordHeader(Position.VECTOR_KEY, position.get().serialize().array()));
+                headers.add(new RecordHeader(
+                    ChangelogRecordDeserializationHelper.VECTOR_KEY,
+                    PositionSerde.serialize(position.get()).array())
+                );
             }
         }
 
