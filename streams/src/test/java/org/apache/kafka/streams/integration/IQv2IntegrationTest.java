@@ -388,9 +388,7 @@ public class IQv2IntegrationTest {
 
     @Test
     public void shouldRangeUncachedTablePartitions() {
-
-        final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
-                kafkaStreams.serdesForStore(UNCACHED_TABLE);
+        
         final InteractiveQueryResult<KeyValueIterator<Integer, Integer>> rangeResult =
                 kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(RangeQuery.withRange(1, 2)));
 
