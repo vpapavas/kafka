@@ -355,27 +355,23 @@ public class IQv2IntegrationTest {
     }
 
     @Test
-    public void shouldRawRangeUncachedTablePartitions() {
-
-        final StateSerdes<Integer, ValueAndTimestamp<Integer>> serdes =
-                kafkaStreams.serdesForStore(UNCACHED_TABLE);
-        final byte[] rawKey = serdes.rawKey(1);
-        final InteractiveQueryResult<KeyValueIterator<Bytes, byte[]>> rangeResult =
-                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(
-                        RawRangeQuery.withRange(Bytes.wrap(serdes.rawKey(1)), Bytes.wrap(serdes.rawKey(2)))));
+    public void shouldRangeUpperAndLowerUncachedTablePartitions() {
+        
+        final InteractiveQueryResult<KeyValueIterator<Integer, Integer>> rangeResult =
+                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(RangeQuery.withRange(1, 2)));
 
         System.out.println("|||" + rangeResult);
-        final Map<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> partitionResults =
+        final Map<Integer, QueryResult<KeyValueIterator<Integer, Integer>>> partitionResults =
                 rangeResult.getPartitionResults();
-        for (final Entry<Integer, QueryResult<KeyValueIterator<Bytes, byte[]>>> entry : partitionResults.entrySet()) {
-            try (final KeyValueIterator<Bytes, byte[]> keyValueIterator =
+        for (final Entry<Integer, QueryResult<KeyValueIterator<Integer, Integer>>> entry : partitionResults.entrySet()) {
+            try (final KeyValueIterator<Integer, Integer> keyValueIterator =
                          entry.getValue().getResult()) {
                 while (keyValueIterator.hasNext()) {
-                    final KeyValue<Bytes, byte[]> next = keyValueIterator.next();
+                    final KeyValue<Integer, Integer> next = keyValueIterator.next();
                     System.out.println(
                             "|||" + entry.getKey() +
-                                    " " + serdes.keyFrom(next.key.get()) +
-                                    " " + serdes.valueFrom(next.value)
+                                    " " + next.key +
+                                    " " + next.value
                     );
                 }
             }
@@ -387,10 +383,10 @@ public class IQv2IntegrationTest {
     }
 
     @Test
-    public void shouldRangeUncachedTablePartitions() {
-        
+    public void shouldRangeUpperUncachedTablePartitions() {
+
         final InteractiveQueryResult<KeyValueIterator<Integer, Integer>> rangeResult =
-                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(RangeQuery.withRange(1, 2)));
+                kafkaStreams.query(inStore(UNCACHED_TABLE).withQuery(RangeQuery.withUpperBound(2)));
 
         System.out.println("|||" + rangeResult);
         final Map<Integer, QueryResult<KeyValueIterator<Integer, Integer>>> partitionResults =
