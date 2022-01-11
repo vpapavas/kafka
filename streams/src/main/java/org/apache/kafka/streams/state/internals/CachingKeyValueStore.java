@@ -26,12 +26,17 @@ import org.apache.kafka.streams.processor.StateStoreContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.apache.kafka.streams.processor.internals.InternalProcessorContext;
 import org.apache.kafka.streams.processor.internals.ProcessorRecordContext;
+import org.apache.kafka.streams.query.KeyQuery;
 import org.apache.kafka.streams.query.Position;
+import org.apache.kafka.streams.query.PositionBound;
+import org.apache.kafka.streams.query.Query;
+import org.apache.kafka.streams.query.QueryResult;
 import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -83,8 +88,69 @@ public class CachingKeyValueStore
         streamThread = Thread.currentThread();
     }
 
-    Position getPosition() {
+    public Position getPosition() {
         return position;
+    }
+
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <R> QueryResult<R> query(final Query<R> query,
+                                    final PositionBound positionBound,
+                                    final boolean collectExecutionInfo) {
+        final long start = collectExecutionInfo ? System.nanoTime() : -1L;
+        QueryResult<R> result = null;
+        final int partition = context.taskId().partition();
+        System.out.println("Executing Query " + query);
+        final Position mergedPosition = Position.emptyPosition();
+        mergedPosition.merge(position);
+        mergedPosition.merge(wrapped().getPosition());
+        if (!StoreQueryUtils.isPermitted(mergedPosition, positionBound, partition)) {
+            result = QueryResult.notUpToBound(mergedPosition, positionBound, partition);
+        } else if (query instanceof KeyQuery) {
+            final KeyQuery<Bytes, byte[]> keyQuery = (KeyQuery<Bytes, byte[]>) query;
+            final Bytes key = keyQuery.getKey();
+
+            validateStoreOpen();
+            final Lock lock = this.lock.readLock();
+            lock.lock();
+            try {
+                validateStoreOpen();
+                if (context.cache() != null) {
+                    final LRUCacheEntry lruCacheEntry = context.cache().get(cacheName, key);
+                    if (lruCacheEntry != null) {
+                        System.out.println("--------> Key in cache");
+                        System.out.println("--------> Cache entry value = "
+                            + Arrays.toString(lruCacheEntry.value()));
+                        final byte[] rawValue;
+                        if (!WrappedStateStore.isTimestamped(wrapped())) {
+                            rawValue = ValueAndTimestampDeserializer.rawValue(lruCacheEntry.value());
+                        } else {
+                            rawValue = lruCacheEntry.value();
+                        }
+                        result = (QueryResult<R>) QueryResult.forResult(rawValue);
+                    }
+                }
+            } finally {
+                lock.unlock();
+            }
+
+            if (result == null) {
+                System.out.println("--------> Query underlying store");
+                result = wrapped().query(query, positionBound, collectExecutionInfo);
+                System.out.println("--------> Result = " + result);
+            }
+        } else {
+            result = wrapped().query(query, positionBound, collectExecutionInfo);
+        }
+        if (collectExecutionInfo) {
+            result.addExecutionInfo(
+                "Handled in " + getClass() + " in " + (System.nanoTime() - start) + "ns"
+            );
+        }
+        System.out.println("cache lookup return rEsult = " + result);
+        result.setPosition(mergedPosition);
+        return result;
     }
 
     private void initInternal(final InternalProcessorContext<?, ?> context) {
@@ -374,6 +440,25 @@ public class CachingKeyValueStore
             }
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    static class CacheResult {
+        private final byte[] result;
+        enum OriginType { CACHE, STORE };
+        private final OriginType resultOrigin;
+
+        public CacheResult(final byte[] result, final OriginType originType) {
+            this.result = result;
+            this.resultOrigin = originType;
+        }
+
+        public byte[] getResult() {
+            return result;
+        }
+
+        public OriginType getResultOrigin() {
+            return resultOrigin;
         }
     }
 }

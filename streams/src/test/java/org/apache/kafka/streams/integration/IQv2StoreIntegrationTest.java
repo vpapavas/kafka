@@ -768,10 +768,13 @@ public class IQv2StoreIntegrationTest {
                 if (storeToTest.timestamped()) {
                     final Function<ValueAndTimestamp<Integer>, Integer> valueExtractor =
                         ValueAndTimestamp::value;
+                    System.out.println("********* Testing key query with key = 2 and timestamped store *********");
                     shouldHandleKeyQuery(2, valueExtractor, 2);
+                    System.out.println("********* End of test ******");
                     shouldHandleRangeQueries(valueExtractor);
                 } else {
                     final Function<Integer, Integer> valueExtractor = Function.identity();
+                    System.out.println("Testing key query with key = 2 and NOT timestamped store");
                     shouldHandleKeyQuery(2, valueExtractor, 2);
                     shouldHandleRangeQueries(valueExtractor);
                 }
@@ -1039,6 +1042,7 @@ public class IQv2StoreIntegrationTest {
             final Function<V, Integer> valueExtactor,
             final Integer expectedValue) {
 
+        System.out.println("--------> KeyQuery with key = " + key);
         final KeyQuery<Integer, V> query = KeyQuery.withKey(key);
         final StateQueryRequest<V> request =
                 inStore(STORE_NAME)

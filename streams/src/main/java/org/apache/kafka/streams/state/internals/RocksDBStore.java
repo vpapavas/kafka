@@ -741,7 +741,8 @@ public class RocksDBStore implements KeyValueStore<Bytes, byte[]>, BatchWritingS
         return userSpecifiedOptions;
     }
 
-    Position getPosition() {
+    @Override
+    public Position getPosition() {
         return position;
     }
 }

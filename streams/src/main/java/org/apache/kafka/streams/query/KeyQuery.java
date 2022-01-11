@@ -49,4 +49,10 @@ public final class KeyQuery<K, V> implements Query<V> {
     public K getKey() {
         return key;
     }
+
+    public String toString() {
+        return "KeyQuery {"
+            + "key =" + key
+            + "}";
+    }
 }

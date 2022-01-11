@@ -46,7 +46,7 @@ public class RocksDBSessionStore
         this.stateStoreContext = context;
     }
 
-    Position getPosition() {
+    public Position getPosition() {
         return position;
     }
 

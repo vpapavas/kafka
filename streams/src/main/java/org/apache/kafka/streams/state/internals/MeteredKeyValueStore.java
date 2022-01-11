@@ -35,6 +35,7 @@ import org.apache.kafka.streams.processor.internals.ProcessorStateManager;
 import org.apache.kafka.streams.processor.internals.SerdeGetter;
 import org.apache.kafka.streams.processor.internals.metrics.StreamsMetricsImpl;
 import org.apache.kafka.streams.query.KeyQuery;
+import org.apache.kafka.streams.query.Position;
 import org.apache.kafka.streams.query.PositionBound;
 import org.apache.kafka.streams.query.Query;
 import org.apache.kafka.streams.query.QueryResult;
@@ -243,6 +244,11 @@ public class MeteredKeyValueStore<K, V>
         return result;
     }
 
+    @Override
+    public Position getPosition() {
+        return wrapped().getPosition();
+    }
+
     @SuppressWarnings("unchecked")
     private <R> QueryResult<R> runRangeQuery(final Query<R> query,
                                              final PositionBound positionBound,
@@ -290,6 +296,7 @@ public class MeteredKeyValueStore<K, V>
     private <R> QueryResult<R> runKeyQuery(final Query<R> query,
                                            final PositionBound positionBound,
                                            final boolean collectExecutionInfo) {
+        System.out.println("Running query " + query);
         final QueryResult<R> result;
         final KeyQuery<K, V> typedKeyQuery = (KeyQuery<K, V>) query;
         final KeyQuery<Bytes, byte[]> rawKeyQuery =
@@ -299,6 +306,7 @@ public class MeteredKeyValueStore<K, V>
         if (rawResult.isSuccess()) {
             final Function<byte[], V> deserializer = getDeserializeValue(serdes, wrapped());
             final V value = deserializer.apply(rawResult.getResult());
+            System.out.println("------> metered store Query result value = " + value);
             final QueryResult<V> typedQueryResult =
                 InternalQueryResultUtil.copyAndSubstituteDeserializedResult(rawResult, value);
             result = (QueryResult<R>) typedQueryResult;
