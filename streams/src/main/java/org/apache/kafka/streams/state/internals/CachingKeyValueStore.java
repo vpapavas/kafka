@@ -53,6 +53,7 @@ public class CachingKeyValueStore
     implements KeyValueStore<Bytes, byte[]>, CachedStateStore<byte[], byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(CachingKeyValueStore.class);
+    private final boolean timestampedSchema;
 
     private CacheFlushListener<byte[], byte[]> flushListener;
     private boolean sendOldValues;
@@ -64,6 +65,13 @@ public class CachingKeyValueStore
 
     CachingKeyValueStore(final KeyValueStore<Bytes, byte[]> underlying) {
         super(underlying);
+        this.timestampedSchema = false;
+        position = Position.emptyPosition();
+    }
+
+    CachingKeyValueStore(final KeyValueStore<Bytes, byte[]> underlying, final boolean timestampedSchema) {
+        super(underlying);
+        this.timestampedSchema = timestampedSchema;
         position = Position.emptyPosition();
     }
 
@@ -123,7 +131,7 @@ public class CachingKeyValueStore
                         System.out.println("--------> Cache entry value = "
                             + Arrays.toString(lruCacheEntry.value()));
                         final byte[] rawValue;
-                        if (!WrappedStateStore.isTimestamped(wrapped())) {
+                        if (timestampedSchema && !WrappedStateStore.isTimestamped(wrapped())) {
                             rawValue = ValueAndTimestampDeserializer.rawValue(lruCacheEntry.value());
                         } else {
                             rawValue = lruCacheEntry.value();
