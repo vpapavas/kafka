@@ -78,7 +78,7 @@ public class TimestampedKeyValueStoreBuilder<K, V>
         if (!enableCaching) {
             return inner;
         }
-        return new CachingKeyValueStore(inner);
+        return new CachingKeyValueStore(inner, true);
     }
 
     private KeyValueStore<Bytes, byte[]> maybeWrapLogging(final KeyValueStore<Bytes, byte[]> inner) {
